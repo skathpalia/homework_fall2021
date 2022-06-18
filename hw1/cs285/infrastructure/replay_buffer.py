@@ -1,4 +1,4 @@
-from cs285.infrastructure.utils import *
+from hw1.cs285.infrastructure.utils import *
 
 
 class ReplayBuffer(object):
@@ -76,8 +76,10 @@ class ReplayBuffer(object):
         ## HINT 1: use np.random.permutation to sample random indices
         ## HINT 2: return corresponding data points from each array (i.e., not different indices from each array)
         ## HINT 3: look at the sample_recent_data function below
-
-        return TODO, TODO, TODO, TODO, TODO
+        rand_index = np.random.permutation(self.obs.shape[0])[:batch_size]
+        return self.obs[rand_index], self.acs[rand_index], self.rews[rand_index], self.next_obs[rand_index], \
+            self.terminals[rand_index]
+        #SRK return TODO, TODO, TODO, TODO, TODO
 
     def sample_recent_data(self, batch_size=1):
         return (

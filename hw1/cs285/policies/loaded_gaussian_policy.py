@@ -1,10 +1,15 @@
 import numpy as np
 
-from cs285.infrastructure import pytorch_util as ptu
+from hw1.cs285.infrastructure import pytorch_util as ptu
 from .base_policy import BasePolicy
 from torch import nn
 import torch
 import pickle
+"""
+Root path = /Users/shivkathpalia/PycharmProjects/homework_fall2021/hw1/cs285/scripts/run_hw1.py
+python3.9 /Users/shivkathpalia/PycharmProjects/homework_fall2021/hw1/cs285/scripts/run_hw1.py --expert_policy_file cs285/policies/experts/Ant.pkl --env_name Ant-v2 --exp_name dagger_ant --n_iter 10 --do_dagger --expert_data cs285/expert_data/expert_data_Ant-v2.pkl --video_log_freq -1
+
+"""
 
 
 def create_linear_layer(W, b) -> nn.Linear:
@@ -28,7 +33,7 @@ def read_layer(l):
 class LoadedGaussianPolicy(BasePolicy, nn.Module):
     def __init__(self, filename, **kwargs):
         super().__init__(**kwargs)
-
+        print("  SRK  FileName = ",  filename)
         with open(filename, 'rb') as f:
             data = pickle.loads(f.read())
 

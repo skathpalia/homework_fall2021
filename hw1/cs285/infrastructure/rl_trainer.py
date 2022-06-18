@@ -1,13 +1,18 @@
+import pathlib
 from collections import OrderedDict
 import numpy as np
 import time
 
 import gym
 import torch
+import copy
+from pandas.io import pickle
+from typing import Tuple, Optional, List
 
-from cs285.infrastructure import pytorch_util as ptu
-from cs285.infrastructure.logger import Logger
-from cs285.infrastructure import utils
+from hw1.cs285.infrastructure import pytorch_util as ptu
+from hw1.cs285.infrastructure.logger import Logger
+from hw1.cs285.infrastructure import utils
+from hw1.cs285.infrastructure.utils import PathDict
 
 # how many rollouts to save as videos to tensorboard
 MAX_NVIDEO = 2
@@ -61,7 +66,12 @@ class RL_Trainer(object):
         if 'model' in dir(self.env):
             self.fps = 1/self.env.model.opt.timestep
         else:
-            self.fps = self.env.env.metadata['video.frames_per_second']
+            self.fps = 30
+            """ SRKSRK Changed because it was not working and giving 
+                self.fps = self.env.env.metadata['video.frames_per_second']
+KeyError: 'video.frames_per_second'  error...
+ORIGINAL line  self.env.env.metadata['video.frames_per_second']
+"""
 
         #############
         ## AGENT
@@ -154,19 +164,32 @@ class RL_Trainer(object):
             envsteps_this_batch: the sum over the numbers of environment steps in paths
             train_video_paths: paths which also contain videos for visualization purposes
         """
+        paths: List[PathDict]
 
-        # TODO decide whether to load training data or use the current policy to collect more data
+        # SRK TODO decide whether to load training data or use the current policy to collect more data
         # HINT: depending on if it's the first iteration or not, decide whether to either
                 # (1) load the data. In this case you can directly return as follows
                 # ``` return loaded_paths, 0, None ```
 
                 # (2) collect `self.params['batch_size']` transitions
-
-        # TODO collect `batch_size` samples to be used for training
+        if iter == 0:
+            assert pathlib.Path(load_initial_expertdata).exists()
+            with open(load_initial_expertdata, 'rb') as f:
+                loaded_path = pickle.loads(f)
+            return loaded_path, 0, None
+        else:
+            paths = utils.sample_n_trajectories(
+                self.env,
+                collect_policy,
+                batch_size // self.params['ep_len'],
+                max_path_length=self.params['ep_len'],
+            )
+            envsteps_this_batch = sum(path['observation'].shape[0] for path in paths)
+        # SRK TODO collect `batch_size` samples to be used for training
         # HINT1: use sample_trajectories from utils
         # HINT2: you want each of these collected rollouts to be of length self.params['ep_len']
         print("\nCollecting data to be used for training...")
-        paths, envsteps_this_batch = TODO
+        paths, envsteps_this_batch = utils.sample_trajectories(self.env, collect_policy, batch_size, self.params['ep_len'])# SRK TODO
 
         # collect more rollouts with the same policy, to be saved as videos in tensorboard
         # note: here, we collect MAX_NVIDEO rollouts, each of length MAX_VIDEO_LEN
@@ -184,24 +207,34 @@ class RL_Trainer(object):
         all_logs = []
         for train_step in range(self.params['num_agent_train_steps_per_iter']):
 
-            # TODO sample some data from the data buffer
+            # SRK TODO sample some data from the data buffer
             # HINT1: use the agent's sample function
             # HINT2: how much data = self.params['train_batch_size']
-            ob_batch, ac_batch, re_batch, next_ob_batch, terminal_batch = TODO
+            ob_batch, ac_batch, re_batch, next_ob_batch, terminal_batch = self.agent.sample \
+                (self.params['train_batch_size'])# SRK TODO
 
-            # TODO use the sampled data to train an agent
+            # SRK TODO use the sampled data to train an agent
             # HINT: use the agent's train function
             # HINT: keep the agent's training log for debugging
-            train_log = TODO
+            train_log = self.agent.train(ob_batch, ac_batch, re_batch, next_ob_batch, terminal_batch)# SRK TODO
             all_logs.append(train_log)
         return all_logs
 
     def do_relabel_with_expert(self, expert_policy, paths):
-        print("\nRelabelling collected observations with labels from an expert policy...")
+        print("\nRelabelling collected observations with labels from an expert policy..."  )
+        # SRK print(type(paths), len(paths))
+        # for path in paths:
+            # SRK print("path: ", path )
 
-        # TODO relabel collected obsevations (from our policy) with labels from an expert policy
+        # SRK TODO relabel collected obsevations (from our policy) with labels from an expert policy
         # HINT: query the policy (using the get_action function) with paths[i]["observation"]
         # and replace paths[i]["action"] with these expert labels
+        relabeled_paths: List[PathDict] = []
+        for path in paths:
+            relabeled_path = copy.deepcopy(path)
+            for t, observation in enumerate(path['observation']):
+                path['action'][t] = expert_policy.get_action(observation)
+            relabeled_paths.append(relabeled_path)
 
         return paths
 
